@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>ひとふで勇者</title>
+<style>
+@font-face{font-family:'DotGothic16';src:url('DotGothic16-Regular.ttf') format('truetype');font-display:block}
+:root{
+  --bg:#0d1c1a;--ink:#f2e6c8;--ink2:#f2e6c8b3;--ink3:#f2e6c866;--gold:#ffe27a;--coin:#ffcf4a;
+  --hp:#58d07a;--bad:#ff6b6b;--good:#7dffa0;--guard:#5cc3ea;--panel:#14141f;--panel2:#1f1f30;--line:#f2e6c826;
+  --edge:#07060a;--win:#15121b;--frame:#3a3446;
+  --stone:#2c2735;--stone-hi:#4d4659;--stone-lo:#17141d;
+  --amber:#d8a03c;--amber-hi:#f6d27a;--amber-lo:#7a4e16;
+  --rune:#3b2a55;--rune-hi:#5f4b8c;--rune-lo:#1d1430;
+  --parch:#e6d3a3;--parch-hi:#f7ebc6;--parch-lo:#a8895a;
+  --sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+body{background:var(--bg);color:var(--ink);font-family:'DotGothic16','Hiragino Kaku Gothic ProN',sans-serif;display:flex;justify-content:center;align-items:center;transition:background .5s;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-text-size-adjust:100%}
+button{font-family:inherit;cursor:pointer;color:inherit;-webkit-user-select:none;user-select:none}
+img.ic{width:1.15em;height:1.15em;vertical-align:-.2em;image-rendering:auto}
+#app{display:flex;flex-direction:column;padding-top:calc(var(--sat) + 4px);max-width:100vw}
+/* ---- HUD ---- */
+#hud{padding:0 2px 6px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.row{display:flex;align-items:center;gap:8px}
+.icon-btn{flex:none;width:40px;height:36px;border-radius:3px;background:var(--stone);border:2px solid var(--edge);box-shadow:inset 2px 2px 0 var(--stone-hi),inset -2px -3px 0 var(--stone-lo);font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center;color:var(--ink)}
+.icon-btn:active{box-shadow:inset 2px 3px 0 var(--stone-lo),inset -2px -2px 0 var(--stone-hi);transform:translateY(1px)}
+#floorName{font-size:15px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#quota{background:var(--parch);color:#2a1c0c;padding:3px 9px;border-radius:3px;border:2px solid var(--edge);box-shadow:inset 1px 1px 0 var(--parch-hi),inset -1px -2px 0 var(--parch-lo);font-size:13px;white-space:nowrap}
+#quota.go{background:var(--amber);box-shadow:inset 1px 1px 0 var(--amber-hi),inset -1px -2px 0 var(--amber-lo);animation:blink 1s infinite}
+#depth{display:flex;align-items:center;height:12px;font-size:12px;color:var(--ink2)}
+#depth i{flex:1;height:4px;background:#f2e6c822;margin-right:3px;border-radius:2px;position:relative}
+#depth i.done{background:#f2e6c8aa}
+#depth i.cur{background:var(--gold);animation:blink 1s infinite}
+#depth i.boss::after{content:'';position:absolute;right:-1px;top:-3px;width:10px;height:10px;background:#ff6b5a;transform:rotate(45deg);border-radius:2px}
+#depth i.boss.done::after{background:#f2e6c8aa}
+#depth .ch{flex:none;margin-right:8px;color:var(--gold);font-weight:normal;font-size:12px;white-space:nowrap}
+.sec2{font-size:12.5px;color:var(--gold);margin:8px 0 0;letter-spacing:.08em}
+#goal{display:flex;align-items:center;gap:8px;background:var(--win);border:2px solid var(--edge);box-shadow:inset 0 0 0 2px var(--frame);border-radius:3px;padding:7px 9px;font-size:13.5px;color:var(--gold);line-height:1.35}
+#goal b{font-weight:normal;flex:1}
+#goal button{flex:none;background:var(--stone);border:2px solid var(--edge);box-shadow:inset 1px 1px 0 var(--stone-hi),inset -1px -2px 0 var(--stone-lo);border-radius:3px;padding:4px 8px;font-size:12px}
+@keyframes blink{50%{opacity:.45}}
+.bar{position:relative;flex:1;height:20px;background:#00000080;border-radius:2px;overflow:hidden;border:2px solid var(--edge)}
+.bar i{position:absolute;inset:0 auto 0 0;background:var(--hp);transition:width .18s}
+.bar i.low{background:#ff5a5a;animation:blink .5s infinite}
+.bar b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:normal;color:#fff;text-shadow:0 1px 0 #000,1px 0 0 #000,-1px 0 0 #000,0 -1px 0 #000}
+.bar.exp{height:15px}.bar.exp i{background:var(--coin)}.bar.exp b{font-size:10.5px}
+#guard{min-width:56px;display:flex;align-items:center;justify-content:center;gap:3px;border:2px solid var(--edge);background:var(--win);color:#5cc3ea99;border-radius:3px;padding:1px 4px;font-size:13px;height:22px}
+#guard.on{background:var(--guard);color:#08202c;border-color:var(--guard)}
+#lv{min-width:34px;color:var(--gold)}
+#atk,#gold{white-space:nowrap;display:flex;align-items:center;gap:3px}
+#gold{color:var(--coin);min-width:46px;justify-content:flex-end}
+/* ---- 盤面 ---- */
+#play{position:relative}
+#stage{position:relative;line-height:0;border-radius:3px;overflow:hidden;box-shadow:0 0 0 2px var(--edge),0 0 0 4px var(--frame)}
+canvas{display:block;touch-action:none}
+#banner{position:absolute;left:0;right:0;top:36%;text-align:center;pointer-events:none;opacity:0;line-height:1.3}
+#banner b{display:block;font-size:26px;font-weight:normal;color:#fff;text-shadow:0 2px 0 #000,2px 0 0 #000,-2px 0 0 #000,0 -2px 0 #000}
+#banner span{display:inline-block;margin-top:4px;font-size:14px;background:#12121acc;padding:2px 10px;border-radius:4px;color:var(--gold)}
+#banner.show{animation:ban 1.5s ease-out forwards}
+@keyframes ban{0%{opacity:0;transform:scale(1.5)}12%{opacity:1;transform:scale(1)}70%{opacity:1}100%{opacity:0;transform:translateY(-10px)}}
+#info{min-height:62px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px 10px;font-size:14.5px;padding:4px;text-align:center;line-height:1.3}
+#info .hint{color:var(--ink2);font-size:13px;flex-basis:100%}
+#info b{font-weight:normal;white-space:nowrap}
+#info .pw{background:var(--gold);color:#12121a;padding:1px 8px;border-radius:4px}
+#info .pw.big{font-size:22px;padding:2px 14px}
+#info .kl{color:#ffb347}#info .hl{color:var(--good)}#info .gd{color:var(--coin)}#info .gu{color:#8fdcff}
+#info .ok{color:var(--good)}#info .bad{color:var(--bad)}#info .warn{color:#ffb347;flex-basis:100%;font-size:13px}
+#info .sub{color:var(--ink3);font-size:11.5px;flex-basis:100%}
+/* ---- 長押し・タップの説明 ---- */
+#tip{position:absolute;left:6px;right:6px;bottom:6px;z-index:4;background:var(--win);border:2px solid var(--edge);box-shadow:inset 0 0 0 2px var(--frame),0 6px 18px #0009;border-radius:3px;padding:9px 11px;display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.55;pointer-events:none}
+#tip[hidden]{display:none}
+#tip img{width:40px;height:40px;flex:none;background:#00000040;border:2px solid var(--frame);border-radius:2px}
+#tip h4{font-weight:normal;font-size:15px;color:var(--gold)}
+#tip .st{color:var(--ink2);font-size:12.5px}
+/* ---- 全画面のパネル ---- */
+#overlay{position:fixed;inset:0;z-index:10;background:#07070df2;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;padding:calc(var(--sat) + 12px) 14px calc(var(--sab) + 16px)}
+#overlay[hidden]{display:none}
+#overlay.solid{background:radial-gradient(ellipse at 50% 30%,#1b3a33 0%,#0d1c1a 55%,#07100e 100%)}
+.box{margin:auto;width:100%;max-width:420px;text-align:center;display:flex;flex-direction:column;gap:10px;animation:pop .18s ease-out}
+@keyframes pop{from{opacity:0;transform:translateY(8px)}}
+h1{font-size:40px;font-weight:normal;color:var(--gold);letter-spacing:3px;text-shadow:0 3px 0 #7a4a2a}
+h2{font-size:23px;font-weight:normal;color:var(--gold)}h2.bad{color:var(--bad)}h2.win{font-size:27px}
+h3{font-size:14px;font-weight:normal;color:var(--ink2);letter-spacing:.15em;text-align:left;margin-top:6px;display:flex;align-items:baseline;gap:8px}
+h3 small{font-size:11.5px;letter-spacing:0;color:var(--ink3)}
+.lead{font-size:14px;line-height:1.75;color:var(--ink)}.lead b,.intro b,.note b{font-weight:normal;color:var(--gold)}
+.rec{font-size:12.5px;color:var(--ink2)}
+.note{font-size:12.5px;line-height:1.7;color:var(--ink2)}
+.err{font-size:12.5px;line-height:1.7;color:var(--bad)}
+.btn{display:block;width:100%;background:var(--stone);color:var(--ink);border:2px solid var(--edge);border-radius:3px;padding:12px;font-size:16px;text-align:center;box-shadow:inset 2px 2px 0 var(--stone-hi),inset -2px -3px 0 var(--stone-lo);text-shadow:0 1px 0 #000a}
+.btn:active{transform:translateY(1px);box-shadow:inset 2px 3px 0 var(--stone-lo),inset -2px -2px 0 var(--stone-hi)}
+.btn.main{background:var(--amber);color:#1a0f04;font-size:19px;padding:14px;box-shadow:inset 2px 2px 0 var(--amber-hi),inset -2px -4px 0 var(--amber-lo);text-shadow:0 1px 0 #fff3c466}
+.btn.main:active{box-shadow:inset 2px 4px 0 var(--amber-lo),inset -2px -2px 0 var(--amber-hi)}
+.btn.main small{color:#3a2408;opacity:.85}
+.btn.ad{background:var(--rune);color:#efe4ff;border-color:var(--edge);box-shadow:inset 0 0 0 2px #c9a14a,inset 4px 4px 0 var(--rune-hi),inset -4px -5px 0 var(--rune-lo)}
+.btn.ghost{background:#00000033;box-shadow:inset 0 0 0 1px #ffffff14;color:var(--ink2)}
+.btn small{display:block;font-size:11.5px;opacity:.75;margin-top:3px}
+.btn:disabled{opacity:.4;filter:saturate(.4);transform:none}
+.btns2{display:flex;gap:8px}.btns2 .btn{flex:1;font-size:14px;padding:10px 6px}
+.badge{display:inline-block;background:#ff6b5a;color:#fff;font-size:11px;padding:1px 6px;border-radius:9px;margin-left:6px;vertical-align:2px}
+.shop{display:flex;gap:8px}
+.shop button{flex:1;background:var(--win);border:2px solid var(--edge);box-shadow:inset 0 0 0 2px var(--frame);border-radius:3px;padding:9px 4px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.shop button:active{transform:translateY(1px);box-shadow:inset 0 0 0 2px var(--amber-lo)}
+.shop button b{font-weight:normal;font-size:16px}.shop button small{font-size:11.5px;opacity:.75}.shop button i{font-style:normal;color:var(--coin);font-size:14px}
+.shop button:disabled{opacity:.35}
+.cards{display:flex;flex-direction:column;gap:8px}
+.cards button{display:flex;align-items:center;gap:11px;text-align:left;background:var(--parch);color:#2a1c0c;border:2px solid var(--edge);border-radius:3px;padding:9px 11px;box-shadow:inset 2px 2px 0 var(--parch-hi),inset -2px -4px 0 var(--parch-lo)}
+.cards button:active{transform:translateY(2px);box-shadow:inset 2px 4px 0 var(--parch-lo),inset -2px -2px 0 var(--parch-hi)}
+.cards em{font-style:normal;flex:none;width:40px;height:40px;border-radius:3px;background:#2a1c0c;border:2px solid #5a4526;box-shadow:inset 1px 1px 0 #6b5434;color:var(--gold);display:flex;align-items:center;justify-content:center;font-size:21px}
+.cards b{display:block;font-weight:normal;font-size:16px}.cards small{font-size:12.5px;color:#2a1c0cbb}
+.cards .lv{font-size:11px;color:#12121a88;margin-left:4px}
+.statline{display:flex;justify-content:center;gap:12px;font-size:13px;color:var(--ink2);flex-wrap:wrap}
+.statline span{display:flex;align-items:center;gap:3px}
+/* レッスン一覧 */
+.lessons{display:flex;flex-direction:column;gap:8px}
+.lessons button{display:flex;align-items:center;gap:12px;text-align:left;background:var(--win);border:2px solid var(--edge);box-shadow:inset 0 0 0 2px var(--frame);border-radius:3px;padding:10px 12px}
+.lessons button:active{transform:translateY(1px)}
+.lessons button.next{box-shadow:inset 0 0 0 2px var(--amber)}
+.lessons .no{flex:none;width:34px;height:34px;border-radius:3px;background:var(--stone);border:2px solid var(--edge);box-shadow:inset 1px 1px 0 var(--stone-hi);display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--gold)}
+.lessons .done .no{background:#3f8a4e;box-shadow:inset 1px 1px 0 #6fc47e;color:#0b2414}
+.lessons b{display:block;font-weight:normal;font-size:16px}.lessons small{font-size:12px;color:var(--ink2)}
+.intro{text-align:left;background:var(--win);border:2px solid var(--edge);box-shadow:inset 0 0 0 2px var(--frame);border-radius:3px;padding:12px 14px;display:flex;flex-direction:column;gap:9px;font-size:14px;line-height:1.7}
+.intro p{display:flex;gap:8px}.intro p::before{content:'▸';color:var(--gold);flex:none}
+.enemycard{display:flex;gap:12px;align-items:center;text-align:left;background:var(--win);border:2px solid var(--edge);box-shadow:inset 0 0 0 2px var(--frame);border-radius:3px;padding:12px}
+.enemycard img{width:64px;height:64px;flex:none;background:#00000040;border:2px solid var(--frame);border-radius:2px}
+.enemycard b{font-weight:normal;font-size:17px;color:var(--gold)}
+.enemycard p{font-size:13px;line-height:1.65;color:var(--ink)}
+/* 遊び方 */
+.tabs{display:flex;gap:4px;background:var(--win);border:2px solid var(--edge);box-shadow:inset 0 0 0 2px var(--frame);border-radius:3px;padding:5px}
+.tabs button{flex:1;border:2px solid transparent;background:none;border-radius:2px;padding:6px 2px;font-size:13.5px;color:var(--ink2)}
+.tabs button.on{background:var(--amber);color:#1a0f04;border-color:var(--edge);box-shadow:inset 1px 1px 0 var(--amber-hi),inset -1px -2px 0 var(--amber-lo)}
+.guide{text-align:left;display:flex;flex-direction:column;gap:8px;min-height:300px}
+.gi{display:flex;gap:10px;align-items:flex-start;background:var(--win);border:2px solid var(--edge);box-shadow:inset 0 0 0 1px var(--frame);border-radius:3px;padding:9px 11px;font-size:13.5px;line-height:1.65}
+.gi img{width:38px;height:38px;flex:none;background:#00000040;border:2px solid var(--frame);border-radius:2px}
+.gi b{font-weight:normal;color:var(--gold)}
+/* 設定 */
+.set{text-align:left;display:flex;flex-direction:column}
+.set .sec{font-size:12px;letter-spacing:.3em;color:var(--ink3);margin:16px 0 6px}
+.set .it{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f2e6c814;font-size:14px}
+.set .it small{display:block;font-size:11.5px;color:var(--ink3)}
+.set .val{color:var(--gold);min-width:44px;text-align:right}
+.tog{flex:none;min-width:64px;padding:6px 10px;border-radius:3px;border:2px solid var(--edge);background:var(--stone);box-shadow:inset 1px 1px 0 var(--stone-hi),inset -1px -2px 0 var(--stone-lo);font-size:13px}
+.tog.on{background:var(--amber);color:#1a0f04;box-shadow:inset 1px 1px 0 var(--amber-hi),inset -1px -2px 0 var(--amber-lo)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:30px;background:transparent;margin-top:2px}
+input[type=range]::-webkit-slider-runnable-track{height:10px;border-radius:2px;border:2px solid var(--edge);background:linear-gradient(90deg,var(--amber) var(--v,50%),var(--stone-lo) var(--v,50%))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:26px;border-radius:2px;background:var(--parch);border:2px solid var(--edge);box-shadow:inset 1px 1px 0 var(--parch-hi),inset -1px -2px 0 var(--parch-lo);margin-top:-10px}
+.title-art{height:120px;margin:-4px auto 0}
+.ver{font-size:11px;color:var(--ink3);margin-top:8px}
+#toast{position:fixed;left:50%;top:40%;transform:translateX(-50%);z-index:20;background:var(--win);border:2px solid var(--edge);box-shadow:inset 0 0 0 2px var(--amber);color:var(--gold);padding:9px 16px;border-radius:3px;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+#toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="hud">
+    <div class="row">
+      <button id="menuBtn" class="icon-btn" aria-label="メニュー">☰</button>
+      <div id="floorName"></div>
+      <div id="quota"></div>
+    </div>
+    <div id="depth"></div>
+    <div id="goal" hidden><b id="goalTxt"></b><button id="goalRetry">やり直す</button></div>
+    <div class="row"><div class="bar"><i id="hpFill"></i><b id="hpTxt"></b></div><div id="guard"></div></div>
+    <div class="row"><div id="lv">Lv1</div><div class="bar exp"><i id="expFill"></i><b id="expTxt"></b></div><div id="atk"></div><div id="gold"></div></div>
+  </header>
+  <div id="play">
+    <div id="stage"><canvas id="cv"></canvas><div id="banner"></div><div id="tip" hidden></div></div>
+    <div id="info"></div>
+  </div>
+</div>
+<div id="overlay" hidden></div>
+<div id="toast"></div>
+<script src="debug-config.js" onerror="this.remove()"></script>
+<script src="rules.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

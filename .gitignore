@@ -1,0 +1,21 @@
+# Xcode
+build/
+DerivedData/
+*.moved-aside
+*.xccheckout
+*.xcscmblueprint
+*.xcuserstate
+xcuserdata/
+
+# Swift Package Manager (local build cache; Package.resolved under xcshareddata stays tracked)
+.build/
+.swiftpm/
+
+
+# macOS
+.DS_Store
+
+# デバッグ端末登録ファイル(端末IDFVを含むため git 管理外)
+**/debug-config.js
+# Firebase 設定(アプリごとに Firebase コンソールから取得)
+**/GoogleService-Info.plist
