@@ -258,7 +258,7 @@ final class RewardedAdController: NSObject {
     /// ready なら即表示する。ready でなければ1回ロードし、最大15秒待ってから表示する
     /// (再試行の待ち時間中でも、ボタン押下ではすぐにロードする)。
     /// デバッグ端末(DebugDeviceConfig.isDebugDevice)では本番広告を消費せず、
-    /// 数秒待って自動的に成功するだけの簡易テスト広告を表示する。
+    /// テスト広告(DebugTestAdViewController)を表示する。5秒見てから閉じると成功、途中で閉じると dismissed。
     func show(completion: @escaping (RewardAdResult) -> Void) {
         if DebugDeviceConfig.isDebugDevice {
             showDebugTestAd(completion: completion)
@@ -327,14 +327,8 @@ final class RewardedAdController: NSObject {
             completion(.unavailable)
             return
         }
-        let alert = UIAlertController(
-            title: "テスト広告",
-            message: "デバッグ端末のため、テスト広告を表示しています…",
-            preferredStyle: .alert)
-        vc.present(alert, animated: true)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-            alert.dismiss(animated: true) { completion(.rewarded) }
-        }
+        // 本物の広告と同じく全画面で音を奪う画面を出す(閉じたあとに音が戻るかを確かめられる)
+        vc.present(DebugTestAdViewController(completion: completion), animated: true)
     }
 
     private func finish(_ result: RewardAdResult) {

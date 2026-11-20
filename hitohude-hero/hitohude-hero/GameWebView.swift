@@ -5,7 +5,7 @@
 //  バンドル内の index.html / rules.js / app.js(ゲーム本体)を WKWebView で動かす。
 //  ファイルはカスタム URL スキーム(hhapp://)経由でバンドルから配信するので、通信なしで遊べる。
 //  ゲーム側(JS)とは window.webkit.messageHandlers.<名前> でやりとりする:
-//    appReady / settings / openURL / requestReview / rewardAd / privacy / progress / haptic
+//    appReady / settings / openURL / requestReview / rewardAd / interstitial / privacy / progress / haptic
 //  ネイティブ → JS は window.__onRewardAdResult__ / window.__setConsentApplicable__ を呼ぶ。
 //
 
@@ -13,6 +13,7 @@ import SwiftUI
 import WebKit
 import StoreKit
 import UIKit
+import AVFoundation
 
 extension Color {
     /// ゲームの背景色(苔の洞窟)。スプラッシュ・広告枠の下地にも使う。
@@ -47,10 +48,12 @@ struct GameWebView: UIViewRepresentable {
         var names = ["appReady", "settings", "openURL", "requestReview", "privacy", "progress", "haptic"]
         // 広告が使えるときだけ登録する。登録しなければ、ゲーム側は広告ボタンそのものを出さない。
         if AppConfig.adsEnabled || DebugDeviceConfig.isDebugDevice { names.append("rewardAd") }
+        if InterstitialAdController.isConfigured || DebugDeviceConfig.isDebugDevice { names.append("interstitial") }
         for name in names { config.userContentController.add(proxy, name: name) }
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
+        webView.uiDelegate = context.coordinator // 長押しメニュー(画像の保存など)を出さない
         webView.isOpaque = false
         webView.backgroundColor = .hhBackground
         webView.scrollView.backgroundColor = .hhBackground
@@ -66,7 +69,13 @@ struct GameWebView: UIViewRepresentable {
 
     func updateUIView(_ uiView: WKWebView, context: Context) {}
 
-    final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
+    final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
+        // 画像やリンクを長押ししたときのメニュー(保存・共有・プレビュー)を出さない
+        func webView(_ webView: WKWebView, contextMenuConfigurationForElement elementInfo: WKContextMenuElementInfo,
+                     completionHandler: @escaping (UIContextMenuConfiguration?) -> Void) {
+            completionHandler(nil)
+        }
+
         var onReady: (() -> Void)?
         private weak var readyWebView: WKWebView?
         private var observingConsent = false
@@ -115,6 +124,37 @@ struct GameWebView: UIViewRepresentable {
             DispatchQueue.main.async { [weak self] in self?.pushConsentApplicable() }
         }
 
+        // MARK: - 音の復帰
+
+        /// 広告・電話・ほかのアプリなどで音が割り込まれると、Web Audio は止まったまま戻らないことがある。
+        /// 割り込みが終わったとき・アプリが前面に戻ったときに、音声セッションを戻してゲーム側の音を起こし直す。
+        private var observingAudio = false
+        private func startObservingAudio() {
+            guard !observingAudio else { return }
+            observingAudio = true
+            NotificationCenter.default.addObserver(self, selector: #selector(audioInterrupted(_:)),
+                                                   name: AVAudioSession.interruptionNotification, object: AVAudioSession.sharedInstance())
+            NotificationCenter.default.addObserver(self, selector: #selector(appBecameActive),
+                                                   name: UIApplication.didBecomeActiveNotification, object: nil)
+        }
+
+        @objc private func audioInterrupted(_ note: Notification) {
+            guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+                  AVAudioSession.InterruptionType(rawValue: raw) == .ended else { return }
+            DispatchQueue.main.async { [weak self] in self?.wakeWebAudio() }
+        }
+
+        @objc private func appBecameActive() {
+            DispatchQueue.main.async { [weak self] in self?.wakeWebAudio() }
+        }
+
+        private func wakeWebAudio() {
+            let session = AVAudioSession.sharedInstance()
+            try? session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+            try? session.setActive(true)
+            readyWebView?.evaluateJavaScript("window.hhAudioResume && window.hhAudioResume()", completionHandler: nil)
+        }
+
         // MARK: - JS からのメッセージ
 
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
@@ -125,8 +165,12 @@ struct GameWebView: UIViewRepresentable {
                 DispatchQueue.main.async {
                     self.onReady?()
                     self.readyWebView = webView
+                    if DebugDeviceConfig.isDebugDevice { // 設定に「広告のあとの音を確認」を出す・広告の回数制限なし
+                        webView?.evaluateJavaScript("window.__hhDebugDevice__ = true", completionHandler: nil)
+                    }
                     self.pushConsentApplicable()
                     self.startObservingConsent()
+                    self.startObservingAudio()
                 }
             case "settings":
                 guard let sleep = body["sleep"] as? Bool else { return }
@@ -145,13 +189,23 @@ struct GameWebView: UIViewRepresentable {
                 guard (body["action"] as? String) == "manageConsent" else { return }
                 DispatchQueue.main.async { ConsentManager.shared.reopenConsentUI() }
             case "rewardAd":
-                guard let context = body["context"] as? String, ["revive", "blessing"].contains(context) else { return }
+                let allowed = DebugDeviceConfig.isDebugDevice ? ["revive", "blessing", "test"] : ["revive", "blessing"] // test は設定の音の確認(デバッグ端末だけ)
+                guard let context = body["context"] as? String, allowed.contains(context) else { return }
                 let webView = message.webView
                 DispatchQueue.main.async {
                     RewardedAdController.shared.show { result in
                         // 結果は "rewarded" | "dismissed" | "nofill" | "nonetwork" | "unavailable" | "timeout"
                         let js = "window.__onRewardAdResult__ && window.__onRewardAdResult__('\(context)', '\(result.rawValue)')"
                         webView?.evaluateJavaScript(js, completionHandler: nil)
+                        self.wakeWebAudio() // 広告が音を使ったあと、ゲームの音が止まったままにならないように
+                    }
+                }
+            case "interstitial": // 5階ごとの区切りの広告。出せなければすぐ false を返す(プレイヤーを待たせない)
+                let webView = message.webView
+                DispatchQueue.main.async {
+                    InterstitialAdController.shared.show { shown in
+                        webView?.evaluateJavaScript("window.__onInterstitialDone__ && window.__onInterstitialDone__(\(shown))", completionHandler: nil)
+                        if shown { self.wakeWebAudio() } // 広告が音を使ったあと、ゲームの音を戻す
                     }
                 }
             case "haptic":
@@ -187,18 +241,20 @@ struct GameWebView: UIViewRepresentable {
             case "tutorial_complete":
                 AppAnalytics.log("tutorial_complete")
             case "run_start":
-                AppAnalytics.log("run_start", parameters: ["floor": num("floor", 3), "clears": num("clears")])
+                AppAnalytics.log("run_start", parameters: ["clears": num("clears")])
             case "floor_clear":
                 AppAnalytics.log("floor_clear", parameters: ["floor": num("floor", 3)])
             case "death":
-                AppAnalytics.log("player_death", parameters: ["floor": num("floor", 3), "enemy_id": str("enemyId"), "is_boss": flag("boss")])
+                AppAnalytics.log("death", parameters: ["floor": num("floor", 3), "enemy_id": str("enemyId"), "boss": flag("boss")])
             case "game_clear":
                 AppAnalytics.log("game_clear", parameters: ["clears": num("clears")])
             case "reward_ad_result":
                 AppAnalytics.log("reward_ad_result", parameters: ["context": str("context"), "result": str("result")])
+            case "interstitial_result":
+                AppAnalytics.log("interstitial_result", parameters: ["floor": body["floor"] as? Int ?? 0, "shown": (body["shown"] as? Bool ?? false) ? 1 : 0])
             case "user_props":
-                if let best = body["bestFloor"] as? Int { AppAnalytics.setUserProperty(String(format: "%03ld", best), forName: "max_floor") }
-                if let clears = body["clears"] as? Int { AppAnalytics.setUserProperty(String(clears), forName: "total_clears") }
+                if let best = body["bestFloor"] as? Int { AppAnalytics.setUserProperty(String(format: "%03ld", best), forName: "best_floor") }
+                if let clears = body["clears"] as? Int { AppAnalytics.setUserProperty(String(clears), forName: "game_clears") }
             default:
                 break
             }

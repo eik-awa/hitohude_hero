@@ -12,13 +12,15 @@ import Foundation
 enum AppConfig {
     /// LevelPlay の App Key(LevelPlay ダッシュボード → Apps → App Key)。
     /// Unity Dashboard の Game ID とは別の値なので注意。
-    static let levelPlayAppKey = ""
+    static let levelPlayAppKey = "29b2647bd"
     /// LevelPlay の Ad Units で発行したバナー広告の ID。
-    static let bannerAdUnitID = ""
+    static let bannerAdUnitID = "w1fjyxjkipld6tgn"
     /// LevelPlay の Ad Units で発行したリワード広告の ID。
-    static let rewardedAdUnitID = ""
+    static let rewardedAdUnitID = "4ap8i8qaeb1d5l8f"
+    /// LevelPlay の Ad Units で発行したインタースティシャル広告の ID(5階ごとに表示)。空なら出さない。
+    static let interstitialAdUnitID = "em0ha53vw96oex69"
     /// InMobi Choice(choice.inmobi.com)で、このアプリの Bundle ID に紐づけて発行した p-code。
-    static let inMobiPCode = ""
+    static let inMobiPCode = "e_de1zrrLkmzK"
 
     /// 広告を配信するか(App Key と両方の Ad Unit ID がそろっているときだけ)。
     static var adsEnabled: Bool {

@@ -96,6 +96,7 @@ final class LevelPlayAdsController: ObservableObject {
                 self.forceReinitialize(reason: "long_background_return")
             case .ready:
                 RewardedAdController.shared.preloadIfNeeded(trigger: "foreground")
+                InterstitialAdController.shared.preloadIfNeeded()
             case .initializing:
                 break
             case .idle, .failed:
@@ -133,6 +134,7 @@ final class LevelPlayAdsController: ObservableObject {
                 AppAnalytics.log("ad_sdk_stale_reinit", parameters: ["reason": reason, "action": "preload_if_needed"])
                 self.lastForcedReinitAt = Date()
                 RewardedAdController.shared.preloadIfNeeded(trigger: "long_background")
+                InterstitialAdController.shared.preloadIfNeeded()
             case .idle, .failed:
                 print("[AdBanner] re-initializing SDK session (reason: \(reason))")
                 AppAnalytics.log("ad_sdk_stale_reinit", parameters: ["reason": reason, "action": "reinit"])
@@ -191,6 +193,7 @@ final class LevelPlayAdsController: ObservableObject {
                 self.retryWorkItem = nil
                 self.isInitialized = true
                 RewardedAdController.shared.preload()
+                InterstitialAdController.shared.preloadIfNeeded()
                 // デバッグ端末でのみ、アダプター(Unity Ads等)が正しく統合されているかを
                 // コンソールに出力する(本番端末では余計なログを出さないよう限定)。
                 if DebugDeviceConfig.isDebugDevice {
